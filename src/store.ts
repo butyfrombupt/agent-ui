@@ -38,7 +38,7 @@ interface PlaygroundStore {
   setIsEndpointLoading: (isLoading: boolean) => void
   messages: PlaygroundChatMessage[]
   setMessages: (
-    messages:
+    messages: 
       | PlaygroundChatMessage[]
       | ((prevMessages: PlaygroundChatMessage[]) => PlaygroundChatMessage[])
   ) => void
@@ -46,14 +46,15 @@ interface PlaygroundStore {
   setHasStorage: (hasStorage: boolean) => void
   chatInputRef: React.RefObject<HTMLTextAreaElement | null>
   selectedEndpoint: string
-  setSelectedEndpoint: (selectedEndpoint: string) => void
+  userId: string
+  setUserId: (userId: string) => void
   agents: Agent[]
   setAgents: (agents: Agent[]) => void
   selectedModel: string
   setSelectedModel: (model: string) => void
   sessionsData: SessionEntry[] | null
   setSessionsData: (
-    sessionsData:
+    sessionsData: 
       | SessionEntry[]
       | ((prevSessions: SessionEntry[] | null) => SessionEntry[] | null)
   ) => void
@@ -82,15 +83,15 @@ export const usePlaygroundStore = create<PlaygroundStore>()(
       messages: [],
       setMessages: (messages) =>
         set((state) => ({
-          messages:
+          messages: 
             typeof messages === 'function' ? messages(state.messages) : messages
         })),
       hasStorage: false,
       setHasStorage: (hasStorage) => set(() => ({ hasStorage })),
       chatInputRef: { current: null },
-      selectedEndpoint: 'http://localhost:7777',
-      setSelectedEndpoint: (selectedEndpoint) =>
-        set(() => ({ selectedEndpoint })),
+      selectedEndpoint: 'http://10.48.106.178:7777', // 写死的endpoint
+      userId: '',
+      setUserId: (userId) => set(() => ({ userId })),
       agents: [],
       setAgents: (agents) => set({ agents }),
       selectedModel: '',
@@ -98,7 +99,7 @@ export const usePlaygroundStore = create<PlaygroundStore>()(
       sessionsData: null,
       setSessionsData: (sessionsData) =>
         set((state) => ({
-          sessionsData:
+          sessionsData: 
             typeof sessionsData === 'function'
               ? sessionsData(state.sessionsData)
               : sessionsData
@@ -111,7 +112,8 @@ export const usePlaygroundStore = create<PlaygroundStore>()(
       name: 'endpoint-storage',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        selectedEndpoint: state.selectedEndpoint
+        selectedEndpoint: state.selectedEndpoint,
+        userId: state.userId
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated?.()

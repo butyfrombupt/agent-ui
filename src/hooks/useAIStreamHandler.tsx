@@ -14,6 +14,7 @@ import useAIResponseStream from './useAIResponseStream'
 import { ToolCall } from '@/types/playground'
 import { useQueryState } from 'nuqs'
 import { getJsonMarkdown } from '@/lib/utils'
+import { toast } from 'sonner'
 
 /**
  * useAIChatStreamHandler is responsible for making API calls and handling the stream response.
@@ -22,9 +23,10 @@ import { getJsonMarkdown } from '@/lib/utils'
 const useAIChatStreamHandler = () => {
   const setMessages = usePlaygroundStore((state) => state.setMessages)
   const { addMessage, focusChatInput } = useChatActions()
-  const [agentId] = useQueryState('agent')
+  const [teamId] = useQueryState('agent')
   const [sessionId, setSessionId] = useQueryState('session')
   const selectedEndpoint = usePlaygroundStore((state) => state.selectedEndpoint)
+  const userId = usePlaygroundStore((state) => state.userId)
   const setStreamingErrorMessage = usePlaygroundStore(
     (state) => state.setStreamingErrorMessage
   )
@@ -148,14 +150,24 @@ const useAIChatStreamHandler = () => {
       try {
         const endpointUrl = constructEndpointUrl(selectedEndpoint)
 
-        if (!agentId) return
-        const playgroundRunUrl = APIRoutes.AgentRun(endpointUrl).replace(
-          '{agent_id}',
-          agentId
-        )
+      // 验证userId是否填写
+      if (!userId) {
+        setStreamingErrorMessage('User ID is required')
+        toast.error('Please set your User ID first')
+        setIsStreaming(false)
+        focusChatInput()
+        return
+      }
 
-        formData.append('stream', 'true')
-        formData.append('session_id', sessionId ?? '')
+      if (!teamId) return
+      const playgroundRunUrl = APIRoutes.AgentRun(endpointUrl).replace(
+        '{team_id}',
+        teamId
+      )
+
+      formData.append('stream', 'true')
+      formData.append('session_id', sessionId ?? '')
+      formData.append('user_id', userId)
 
         await streamResponse({
           apiUrl: playgroundRunUrl,
@@ -370,23 +382,24 @@ const useAIChatStreamHandler = () => {
         setIsStreaming(false)
       }
     },
-    [
-      setMessages,
-      addMessage,
-      updateMessagesWithErrorState,
-      selectedEndpoint,
-      streamResponse,
-      agentId,
-      setStreamingErrorMessage,
-      setIsStreaming,
-      focusChatInput,
-      setSessionsData,
-      sessionId,
-      setSessionId,
-      hasStorage,
-      processChunkToolCalls
-    ]
-  )
+        [
+          setMessages,
+          addMessage,
+          updateMessagesWithErrorState,
+          selectedEndpoint,
+          userId,
+          streamResponse,
+          teamId,
+          setStreamingErrorMessage,
+          setIsStreaming,
+          focusChatInput,
+          setSessionsData,
+          sessionId,
+          setSessionId,
+          hasStorage,
+          processChunkToolCalls
+        ]
+      )
 
   return { handleStreamResponse }
 }

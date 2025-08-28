@@ -97,7 +97,7 @@ const Sessions = () => {
       getSession(sessionId, agentId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated])
+  }, [hydrated, sessionId, agentId])
 
   useEffect(() => {
     if (!selectedEndpoint || !agentId || !hasStorage) {

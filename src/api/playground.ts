@@ -17,7 +17,7 @@ export const getPlaygroundAgentsAPI = async (
     const data = await response.json()
     // Transform the API response into the expected shape.
     const agents: ComboboxAgent[] = data.map((item: Agent) => ({
-      value: item.agent_id || '',
+      value: item.team_id || '',
       label: item.name || '',
       model: item.model || '',
       storage: item.storage || false
@@ -38,15 +38,17 @@ export const getPlaygroundStatusAPI = async (base: string): Promise<number> => {
 
 export const getAllPlaygroundSessionsAPI = async (
   base: string,
-  agentId: string
+  teamId: string,
+  userId?: string
 ): Promise<SessionEntry[]> => {
   try {
-    const response = await fetch(
-      APIRoutes.GetPlaygroundSessions(base, agentId),
-      {
-        method: 'GET'
-      }
-    )
+    let url = APIRoutes.GetPlaygroundSessions(base, teamId);
+    if (userId) {
+      url = `${url}?user_id=${encodeURIComponent(userId)}`;
+    }
+    const response = await fetch(url, {
+      method: 'GET'
+    })
     if (!response.ok) {
       if (response.status === 404) {
         // Return empty array when storage is not enabled
@@ -62,11 +64,11 @@ export const getAllPlaygroundSessionsAPI = async (
 
 export const getPlaygroundSessionAPI = async (
   base: string,
-  agentId: string,
+  teamId: string,
   sessionId: string
 ) => {
   const response = await fetch(
-    APIRoutes.GetPlaygroundSession(base, agentId, sessionId),
+    APIRoutes.GetPlaygroundSession(base, teamId, sessionId),
     {
       method: 'GET'
     }
@@ -76,11 +78,11 @@ export const getPlaygroundSessionAPI = async (
 
 export const deletePlaygroundSessionAPI = async (
   base: string,
-  agentId: string,
+  teamId: string,
   sessionId: string
 ) => {
   const response = await fetch(
-    APIRoutes.DeletePlaygroundSession(base, agentId, sessionId),
+    APIRoutes.DeletePlaygroundSession(base, teamId, sessionId),
     {
       method: 'DELETE'
     }

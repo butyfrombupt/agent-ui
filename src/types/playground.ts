@@ -62,7 +62,7 @@ export interface Model {
 }
 
 export interface Agent {
-  agent_id: string
+  team_id: string
   name: string
   description: string
   model: Model
@@ -111,7 +111,7 @@ export interface RunResponseContent {
   metrics?: object
   model?: string
   run_id?: string
-  agent_id?: string
+  team_id?: string
   session_id?: string
   tool?: ToolCall
   tools?: Array<ToolCall>
@@ -133,7 +133,7 @@ export interface RunResponse {
   metrics?: object
   model?: string
   run_id?: string
-  agent_id?: string
+  team_id?: string
   session_id?: string
   tool?: ToolCall
   tools?: Array<ToolCall>

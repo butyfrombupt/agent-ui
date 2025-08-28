@@ -153,6 +153,20 @@ const Img = ({ src, alt }: ImgProps) => {
 
   if (!src) return null
 
+  // 对于Blob类型的src，使用标准的img元素
+  if (typeof src !== 'string') {
+    return (
+      <div className="w-full max-w-xl">
+        <img
+          src={URL.createObjectURL(src)}
+          alt={alt ?? 'Rendered image'}
+          className="size-full rounded-md object-cover"
+          onError={() => setError(true)}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="w-full max-w-xl">
       {error ? (
