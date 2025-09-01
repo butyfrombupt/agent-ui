@@ -9,6 +9,7 @@ export interface ToolCall {
     time: number
   }
   created_at: number
+  result: string
 }
 
 export interface ReasoningSteps {
@@ -143,6 +144,16 @@ export interface RunResponse {
   videos?: VideoData[]
   audio?: AudioData[]
   response_audio?: ResponseAudio
+  member_responses?: Array<{
+    content?: string
+    tools?: Array<{
+      tool_call_id: string
+      tool_name: string
+      tool_args: Record<string, any>
+      result: any
+      tool_call_error: boolean
+    }>
+  }>
 }
 
 export interface AgentExtraData {
@@ -183,6 +194,25 @@ export interface PlaygroundChatMessage {
   videos?: VideoData[]
   audio?: AudioData[]
   response_audio?: ResponseAudio
+  // 新增：支持ToolCallCompleted事件中的member_responses
+  member_responses?: Array<{
+    content?: string
+    tools?: Array<{
+      tool_call_id: string
+      tool_name: string
+      tool_args: Record<string, any>
+      result: any
+      tool_call_error: boolean
+    }>
+  }>
+  // 新增：支持ToolCallCompleted事件中的tools字段
+  tools?: Array<{
+    tool_call_id: string
+    tool_name: string
+    tool_args: Record<string, any>
+    result: any
+    tool_call_error: boolean
+  }>
 }
 
 export interface ComboboxAgent {
@@ -255,6 +285,16 @@ export interface ChatEntry {
     response_audio?: {
       transcript?: string
     }
+    member_responses?: Array<{
+      content?: string
+      tools?: Array<{
+        tool_call_id: string
+        tool_name: string
+        tool_args: Record<string, any>
+        result: any
+        tool_call_error: boolean
+      }>
+    }>
     created_at: number
   }
 }

@@ -111,7 +111,8 @@ const useSessionLoader = () => {
                       tool_call_error: msg.tool_call_error ?? false,
                       metrics: msg.metrics ?? { time: 0 },
                       created_at:
-                        msg.created_at ?? Math.floor(Date.now() / 1000)
+                        msg.created_at ?? Math.floor(Date.now() / 1000),
+                      result:  ''
                     });
                   }
                   return acc;
@@ -124,6 +125,7 @@ const useSessionLoader = () => {
               role: 'agent',
               content: (run.response.content as string) ?? '',
               tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+              member_responses: run.response.member_responses,
               extra_data: run.response.extra_data,
               images: run.response.images,
               videos: run.response.videos,

@@ -178,7 +178,8 @@ const useAIChatStreamHandler = () => {
               chunk.event === RunEvent.ReasoningStarted
             ) {
               newSessionId = chunk.session_id as string
-              setSessionId(chunk.session_id as string)
+              // 不要在流式响应过程中立即更新URL，避免触发session加载导致404
+              // setSessionId(chunk.session_id as string)
               if (
                 hasStorage &&
                 (!sessionId || sessionId !== chunk.session_id) &&
@@ -306,6 +307,27 @@ const useAIChatStreamHandler = () => {
                     ) ?? null
                 )
               }
+            } else if (chunk.event === RunEvent.ToolCallCompleted) {
+              setMessages((prevMessages) => {
+                const newMessages = [...prevMessages]
+                const lastMessage = newMessages[newMessages.length - 1]
+                if (lastMessage && lastMessage.role === 'agent') {
+                  // 处理member_responses数据
+                  if (chunk.member_responses) {
+                    lastMessage.member_responses = chunk.member_responses
+                  }
+                  // 处理tools数据
+                  if (chunk.tools) {
+                    lastMessage.tools = chunk.tools
+                  }
+                  // 继续处理tool_calls
+                  lastMessage.tool_calls = processChunkToolCalls(
+                    chunk,
+                    lastMessage.tool_calls
+                  )
+                }
+                return newMessages
+              })
             } else if (chunk.event === RunEvent.RunCompleted) {
               setMessages((prevMessages) => {
                 const newMessages = prevMessages.map((message, index) => {
@@ -362,7 +384,12 @@ const useAIChatStreamHandler = () => {
               )
             }
           },
-          onComplete: () => {}
+          onComplete: () => {
+            // 流式响应完成后再更新sessionId，避免在响应过程中触发404
+            if (newSessionId && newSessionId !== sessionId) {
+              setSessionId(newSessionId)
+            }
+          }
         })
       } catch (error) {
         updateMessagesWithErrorState()
