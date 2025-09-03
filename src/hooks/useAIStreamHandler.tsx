@@ -173,9 +173,15 @@ const useAIChatStreamHandler = () => {
           apiUrl: playgroundRunUrl,
           requestBody: formData,
           onChunk: (chunk: RunResponse) => {
+            // 完全忽略子Agent的RunResponseContent事件，避免显示中间结果 这一部决定了子Agent的结果是否流式展示
+            if (chunk.event === RunEvent.RunResponseContent) {
+              return
+            }
             if (
               chunk.event === RunEvent.RunStarted ||
-              chunk.event === RunEvent.ReasoningStarted
+              chunk.event === RunEvent.ReasoningStarted ||
+              chunk.event === RunEvent.TeamRunStarted ||
+              chunk.event === RunEvent.TeamReasoningStarted
             ) {
               newSessionId = chunk.session_id as string
               // 不要在流式响应过程中立即更新URL，避免触发session加载导致404
@@ -200,7 +206,7 @@ const useAIChatStreamHandler = () => {
                   return [sessionData, ...(prevSessionsData ?? [])]
                 })
               }
-            } else if (chunk.event === RunEvent.ToolCallStarted) {
+            } else if (chunk.event === RunEvent.ToolCallStarted || chunk.event === RunEvent.TeamToolCallStarted) {
               setMessages((prevMessages) => {
                 const newMessages = [...prevMessages]
                 const lastMessage = newMessages[newMessages.length - 1]
@@ -213,8 +219,10 @@ const useAIChatStreamHandler = () => {
                 return newMessages
               })
             } else if (
-              chunk.event === RunEvent.RunResponse ||
-              chunk.event === RunEvent.RunResponseContent
+              // chunk.event === RunEvent.RunResponse ||
+              // chunk.event === RunEvent.RunResponseContent 
+              // 只展示最后结果，中间过程靠其他模块展示
+              chunk.event === RunEvent.TeamRunResponseContent
             ) {
               setMessages((prevMessages) => {
                 const newMessages = [...prevMessages]
@@ -281,7 +289,7 @@ const useAIChatStreamHandler = () => {
                 }
                 return newMessages
               })
-            } else if (chunk.event === RunEvent.ReasoningCompleted) {
+            } else if (chunk.event === RunEvent.ReasoningCompleted || chunk.event === RunEvent.TeamReasoningCompleted) {
               setMessages((prevMessages) => {
                 const newMessages = [...prevMessages]
                 const lastMessage = newMessages[newMessages.length - 1]
@@ -295,7 +303,7 @@ const useAIChatStreamHandler = () => {
                 }
                 return newMessages
               })
-            } else if (chunk.event === RunEvent.RunError) {
+            } else if (chunk.event === RunEvent.RunError || chunk.event === RunEvent.TeamRunError) {
               updateMessagesWithErrorState()
               const errorContent = chunk.content as string
               setStreamingErrorMessage(errorContent)
@@ -307,7 +315,7 @@ const useAIChatStreamHandler = () => {
                     ) ?? null
                 )
               }
-            } else if (chunk.event === RunEvent.ToolCallCompleted) {
+            } else if (chunk.event === RunEvent.ToolCallCompleted || chunk.event === RunEvent.TeamToolCallCompleted) {
               setMessages((prevMessages) => {
                 const newMessages = [...prevMessages]
                 const lastMessage = newMessages[newMessages.length - 1]
@@ -328,7 +336,7 @@ const useAIChatStreamHandler = () => {
                 }
                 return newMessages
               })
-            } else if (chunk.event === RunEvent.RunCompleted) {
+            } else if (chunk.event === RunEvent.TeamRunCompleted) {
               setMessages((prevMessages) => {
                 const newMessages = prevMessages.map((message, index) => {
                   if (

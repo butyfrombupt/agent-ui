@@ -87,7 +87,19 @@ export enum RunEvent {
   UpdatingMemory = 'UpdatingMemory',
   ReasoningStarted = 'ReasoningStarted',
   ReasoningStep = 'ReasoningStep',
-  ReasoningCompleted = 'ReasoningCompleted'
+  ReasoningCompleted = 'ReasoningCompleted',
+  TeamRunResponseContent = 'TeamRunResponseContent',
+  TeamRunError = 'TeamRunError',
+  TeamRunCancelled = 'TeamRunCancelled',
+  TeamToolCallStarted = 'TeamToolCallStarted',
+  TeamToolCallCompleted = 'TeamToolCallCompleted',  
+  TeamRunStarted = 'TeamRunStarted',
+  TeamRunCompleted = 'TeamRunCompleted',
+  TeamReasoningStarted = 'TeamReasoningStarted',
+  TeamReasoningStep = 'TeamReasoningStep',
+  TeamReasoningCompleted = 'TeamReasoningCompleted',
+  TeamMemoryUpdateStarted = 'TeamMemoryUpdateStarted',
+  TeamMemoryUpdateCompleted = 'TeamMemoryUpdateCompleted',
 }
 
 export interface ResponseAudio {
@@ -145,12 +157,14 @@ export interface RunResponse {
   audio?: AudioData[]
   response_audio?: ResponseAudio
   member_responses?: Array<{
-    content?: string
+    content?: string,
+    created_at: number,
     tools?: Array<{
       tool_call_id: string
       tool_name: string
       tool_args: Record<string, any>
-      result: any
+      result: any,
+      created_at: number,
       tool_call_error: boolean
     }>
   }>
@@ -196,12 +210,14 @@ export interface PlaygroundChatMessage {
   response_audio?: ResponseAudio
   // 新增：支持ToolCallCompleted事件中的member_responses
   member_responses?: Array<{
-    content?: string
+    content?: string,
+    created_at: number,
     tools?: Array<{
       tool_call_id: string
       tool_name: string
       tool_args: Record<string, any>
-      result: any
+      result: any,
+      created_at: number,
       tool_call_error: boolean
     }>
   }>
@@ -210,7 +226,8 @@ export interface PlaygroundChatMessage {
     tool_call_id: string
     tool_name: string
     tool_args: Record<string, any>
-    result: any
+    result: any,
+    created_at: number,
     tool_call_error: boolean
   }>
 }

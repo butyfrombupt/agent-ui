@@ -74,10 +74,10 @@ const ToolsCompletionCard: FC<ToolsCompletionCardProps> = ({ tools }) => {
     <>
       {tools.map((tool, index) => {
         // 只显示atransfer_task_to_member工具的result内容
-        if (tool.tool_name !== 'atransfer_task_to_member') {
+        if (tool.tool_name !== 'transfer_task_to_member') {
           return null;
         }
-        if (tool.tool_name == 'atransfer_task_to_member' && tool.result == undefined && tool.result == null) {
+        if (tool.tool_name == 'transfer_task_to_member' && tool.result == undefined && tool.result == null) {
           return null;
         }
         const memberId = tool.tool_args.member_id || ''
@@ -141,7 +141,126 @@ const References: FC<ReferenceProps> = ({ references }) => (
   </div>
 )
 
+// 统一卡片类型定义
+type UnifiedCardType = 'tool_call' | 'member_response' | 'tools_completion'
+
+interface UnifiedCard {
+  id: string
+  type: UnifiedCardType
+  created_at: number
+  data: any
+}
+
+// 统一卡片组件
+const UnifiedCard: FC<{ card: UnifiedCard }> = ({ card }) => {
+  const getCardIcon = () => (
+    <Icon
+      type="hammer"
+      className="rounded-lg bg-background-secondary p-1"
+      size="sm"
+      color="secondary"
+    />
+  )
+
+  const getCardTitle = () => {
+    switch (card.type) {
+      case 'tool_call':
+        return 'Tool Calls'
+      case 'member_response':
+        return 'Member Tool Calls'
+      case 'tools_completion':
+        return 'Tools Completion'
+      default:
+        return 'Unknown'
+    }
+  }
+
+  const renderCardContent = () => {
+    switch (card.type) {
+      case 'tool_call':
+        return (
+          <ToolComponent
+            key={card.data.tool_call_id || `${card.data.tool_name}-${card.data.created_at}`}
+            tools={card.data}
+          />
+        )
+      case 'member_response':
+        return (
+          <MemberResponseToolsDisplay memberResponses={[card.data]} />
+        )
+      case 'tools_completion':
+        return (
+          <ToolsCompletionCard tools={[card.data]} />
+        )
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div className="flex items-start gap-3">
+      <Tooltip
+        delayDuration={0}
+        content={<p className="text-accent">{getCardTitle()}</p>}
+        side="top"
+      >
+        {getCardIcon()}
+      </Tooltip>
+      <div className="flex flex-wrap gap-2">
+        {renderCardContent()}
+      </div>
+    </div>
+  )
+}
+
 const AgentMessageWrapper = ({ message }: MessageWrapperProps) => {
+  // 创建统一的卡片数组
+  const createUnifiedCards = (): UnifiedCard[] => {
+    const cards: UnifiedCard[] = []
+
+    // 添加 tool_calls (分配任务)
+    if (message.tool_calls && message.tool_calls.length > 0) {
+      message.tool_calls.forEach((toolCall, index) => {
+        cards.push({
+          id: toolCall.tool_call_id || `tool-call-${message.created_at}-${index}`,
+          type: 'tool_call',
+          created_at: message.created_at,
+          data: toolCall
+        })
+      })
+    }
+
+    // 添加 member_responses (工具调用)
+    if (message.member_responses && message.member_responses.length > 0) {
+      message.member_responses.forEach((memberResponse, index) => {
+        cards.push({
+          id: `member-response-${message.created_at}-${index}`,
+          type: 'member_response',
+          created_at: message.created_at,
+          data: memberResponse
+        })
+      })
+    }
+
+    // 添加 tools (执行结果)
+    if (message.tool_calls && message.tool_calls.length > 0) {
+      message.tool_calls.forEach((tool, index) => {
+        if (tool.tool_name == 'transfer_task_to_member') {
+        cards.push({
+          id: `tools-completion-${tool.tool_call_id || index}`,
+          type: 'tools_completion',
+          created_at: message.created_at,
+          data: tool
+        })
+      }
+      })
+    }
+    // 按创建时间排序，确保正确的时间顺序
+    return cards.sort((a, b) => a.created_at - b.created_at)
+  }
+
+  const unifiedCards = createUnifiedCards()
+
   return (
     <div className="flex flex-col gap-y-9">
       {message.extra_data?.reasoning_steps &&
@@ -175,72 +294,10 @@ const AgentMessageWrapper = ({ message }: MessageWrapperProps) => {
             </div>
           </div>
         )}
-      {message.tool_calls && message.tool_calls.length > 0 && (
-        <div className="flex items-start gap-3">
-          <Tooltip
-            delayDuration={0}
-            content={<p className="text-accent">Tool Calls</p>}
-            side="top"
-          >
-            <Icon
-              type="hammer"
-              className="rounded-lg bg-background-secondary p-1"
-              size="sm"
-              color="secondary"
-            />
-          </Tooltip>
-
-          <div className="flex flex-wrap gap-2">
-            {message.tool_calls.map((toolCall, index) => (
-              <ToolComponent
-                key={
-                  toolCall.tool_call_id ||
-                  `${toolCall.tool_name}-${toolCall.created_at}-${index}`
-                }
-                tools={toolCall}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-      {message.member_responses && message.member_responses.length > 0 && (
-        <div className="flex items-start gap-3">
-          <Tooltip
-            delayDuration={0}
-            content={<p className="text-accent">Member Tool Calls</p>}
-            side="top"
-          >
-            <Icon
-              type="hammer"
-              className="rounded-lg bg-background-secondary p-1"
-              size="sm"
-              color="secondary"
-            />
-          </Tooltip>
-          <div className="flex flex-wrap gap-2">
-            <MemberResponseToolsDisplay memberResponses={message.member_responses} />
-          </div>
-        </div>
-      )}
-      {message.tool_calls && message.tool_calls.length > 0 && (
-        <div className="flex items-start gap-3">
-          <Tooltip
-            delayDuration={0}
-            content={<p className="text-accent">Tools Completion</p>}
-            side="top"
-          >
-            <Icon
-              type="hammer"
-              className="rounded-lg bg-background-secondary p-1"
-              size="sm"
-              color="secondary"
-            />
-          </Tooltip>
-          <div className="flex flex-wrap gap-2">
-            <ToolsCompletionCard tools={message.tool_calls} />
-          </div>
-        </div>
-      )}
+      {/* 统一的卡片展示 */}
+      {unifiedCards.map((card) => (
+        <UnifiedCard key={card.id} card={card} />
+      ))}
       <AgentMessage message={message} />
     </div>
   )
@@ -269,6 +326,7 @@ const Reasonings: FC<ReasoningProps> = ({ reasoning }) => (
 interface MemberResponseToolsDisplayProps {
   memberResponses: Array<{
     content?: string
+    agent_name?: string
     tools?: Array<{
       tool_call_id: string
       tool_name: string
@@ -290,13 +348,39 @@ interface ToolsCompletionCardProps {
   }>
 }
 
-const MemberToolArgItem: FC<{ argKey: string; value: any }> = ({ argKey, value }) => {
+const MemberToolArgItem: FC<{ argKey: string; value: any; depth?: number }> = ({ argKey, value, depth = 0 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const valueStr = String(value);
+  const isObject = value && typeof value === 'object' && !Array.isArray(value);
+  const isArray = Array.isArray(value);
+  const valueStr = isObject || isArray ? JSON.stringify(value, null, 2) : String(value);
   const isLongValue = valueStr.length > 50;
+  const indentClass = depth > 0 ? 'ml-4' : '';
+  
+  if (isObject && Object.keys(value).length > 0) {
+    return (
+      <div className={`${indentClass}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-primary/70 font-medium">{argKey}:</span>
+          <button 
+            className="text-xs text-primary/50 hover:text-primary/80"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? '收起' : '展开'}
+          </button>
+        </div>
+        {isExpanded && (
+          <div className="ml-4 space-y-1 border-l border-primary/20 pl-3">
+            {Object.entries(value).map(([key, val]) => (
+              <MemberToolArgItem key={key} argKey={key} value={val} depth={depth + 1} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
   
   return (
-    <div className="flex items-start gap-2">
+    <div className={`flex items-start gap-2 ${indentClass}`}>
       <span className="text-primary/70 font-medium min-w-0">{argKey}:</span>
       {isLongValue ? (
         <div className="flex-1">
@@ -354,11 +438,45 @@ const MemberToolResult: FC<{ result: any }> = ({ result }) => {
   );
 };
 
+// 格式化工具返回结果组件（独立组件以避免Hooks规则问题）
+const ToolResultDisplay: FC<{ result: any }> = ({ result }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  if (result === null || result === undefined) return <span className="text-primary/50">无返回数据</span>;
+  
+  let resultStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+  // 解码Unicode字符
+  resultStr = decodeUnicodeString(resultStr);
+  const isLongResult = resultStr.length > 100;
+  
+  return (
+    <div className="mt-2 p-2 bg-background-secondary rounded border">
+      <div className="text-xs text-primary/70 font-medium mb-1 flex items-center gap-2">
+        返回结果:
+        {isLongResult && (
+          <button 
+            className="text-xs text-primary/50 hover:text-primary/80"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? '收起' : '展开'}
+          </button>
+        )}
+      </div>
+      {isLongResult ? (
+        <div className="text-xs text-primary/90 whitespace-pre-wrap select-text">
+          {isExpanded ? resultStr : `${resultStr.substring(0, 100)}...`}
+        </div>
+      ) : (
+        <div className="text-xs text-primary/90 whitespace-pre-wrap select-text">{resultStr}</div>
+      )}
+    </div>
+  );
+};
+
 const MemberResponseToolsDisplay: FC<MemberResponseToolsDisplayProps> = ({ memberResponses }) => {
 
   const formatMemberToolArgs = (args: Record<string, any>): JSX.Element => {
     if (!args || typeof args !== 'object') return <span>无参数</span>;
-    
     return (
       <div className="space-y-1">
         {Object.entries(args).map(([key, value]) => (
@@ -375,7 +493,7 @@ const MemberResponseToolsDisplay: FC<MemberResponseToolsDisplayProps> = ({ membe
           return (
             <div key={`${responseIndex}-${toolIndex}`} className="cursor-default rounded-lg bg-accent px-3 py-2 text-xs max-w-2xl w-full overflow-hidden">
               <p className="font-dmmono uppercase text-primary/80 mb-1">
-                {tool.tool_name}
+                {response.agent_name} 调用工具：{tool.tool_name}
               </p>
               
               {tool.tool_args && Object.keys(tool.tool_args).length > 0 && (
@@ -448,42 +566,9 @@ const ToolComponent = memo(({ tools }: ToolCallProps) => {
     )
   }
 
-  // 格式化工具返回结果（可点击展开）
-  const formatToolResult = (result: any): JSX.Element => {
-    if (result === null || result === undefined) return <span className="text-primary/50">无返回数据</span>;
-    
-    let resultStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
-    // 解码Unicode字符
-    resultStr = decodeUnicodeString(resultStr);
-    const isLongResult = resultStr.length > 100;
-    const [isExpanded, setIsExpanded] = useState(false);
-    
-    return (
-      <div className="mt-2 p-2 bg-background-secondary rounded border">
-        <div className="text-xs text-primary/70 font-medium mb-1 flex items-center gap-2">
-          返回结果:
-          {isLongResult && (
-            <button 
-              className="text-xs text-primary/50 hover:text-primary/80"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? '收起' : '展开'}
-            </button>
-          )}
-        </div>
-        {isLongResult ? (
-          <div className="text-xs text-primary/90 whitespace-pre-wrap select-text">
-            {isExpanded ? resultStr : `${resultStr.substring(0, 100)}...`}
-          </div>
-        ) : (
-          <div className="text-xs text-primary/90 whitespace-pre-wrap select-text">{resultStr}</div>
-        )}
-      </div>
-    );
-  };
 
-  const isTransferTask = tools.tool_name === 'atransfer_task_to_member';
 
+  const isTransferTask = tools.tool_name === 'transfer_task_to_member';
   return (
     <div className="cursor-default rounded-lg bg-accent px-3 py-2 text-xs max-w-2xl w-full overflow-hidden">
       <p className="font-dmmono uppercase text-primary/80 mb-1">
@@ -503,7 +588,7 @@ const ToolComponent = memo(({ tools }: ToolCallProps) => {
         </div>
       )}
       
-      {!isTransferTask && tools.result !== undefined && formatToolResult(tools.result)}
+      {!isTransferTask && tools.result !== undefined && <ToolResultDisplay result={tools.result} />}
     </div>
   )
 })
