@@ -92,7 +92,8 @@ const useSessionLoader = () => {
             filteredMessages.push({
               role: 'user',
               content: run.message.content ?? '',
-              created_at: run.message.created_at
+              created_at: run.message.created_at,
+              dataSource: 'historical'
             });
           }
 
@@ -124,6 +125,7 @@ const useSessionLoader = () => {
             filteredMessages.push({
               role: 'agent',
               content: (run.response.content as string) ?? '',
+              messages: run.response.messages,
               tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
               member_responses: run.response.member_responses,
               extra_data: run.response.extra_data,
@@ -131,7 +133,8 @@ const useSessionLoader = () => {
               videos: run.response.videos,
               audio: run.response.audio,
               response_audio: run.response.response_audio,
-              created_at: run.response.created_at
+              created_at: run.response.created_at,
+              dataSource: 'historical'
             });
           }
           return filteredMessages;

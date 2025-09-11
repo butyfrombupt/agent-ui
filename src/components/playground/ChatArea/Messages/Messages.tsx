@@ -153,14 +153,31 @@ interface UnifiedCard {
 
 // 统一卡片组件
 const UnifiedCard: FC<{ card: UnifiedCard }> = ({ card }) => {
-  const getCardIcon = () => (
-    <Icon
-      type="hammer"
-      className="rounded-lg bg-background-secondary p-1"
-      size="sm"
-      color="secondary"
-    />
-  )
+  const getCardIcon = () => {
+    let iconType: string
+    switch (card.type) {
+      case 'tool_call':
+        iconType = 'user-plus'
+        break
+      case 'member_response':
+        iconType = 'hammer'
+        break
+      case 'tools_completion':
+        iconType = 'check-circle'
+        break
+      default:
+        iconType = 'hammer'
+    }
+    
+    return (
+      <Icon
+        type={iconType as any}
+        className="rounded-lg bg-background-secondary p-1"
+        size="sm"
+        color="secondary"
+      />
+    )
+  }
 
   const getCardTitle = () => {
     switch (card.type) {
@@ -213,12 +230,13 @@ const UnifiedCard: FC<{ card: UnifiedCard }> = ({ card }) => {
   )
 }
 
-const AgentMessageWrapper = ({ message }: MessageWrapperProps) => {
-  // 创建统一的卡片数组
+// 实时流式数据渲染组件
+const StreamingAgentMessageWrapper = ({ message }: MessageWrapperProps) => {
+  // 创建统一的卡片数组 - 流式数据实时更新
   const createUnifiedCards = (): UnifiedCard[] => {
     const cards: UnifiedCard[] = []
 
-    // 添加 tool_calls (分配任务)
+    // 添加 tool_calls (分配任务+Team工作调用) - 流式数据可能部分完成
     if (message.tool_calls && message.tool_calls.length > 0) {
       message.tool_calls.forEach((toolCall, index) => {
         cards.push({
@@ -230,7 +248,7 @@ const AgentMessageWrapper = ({ message }: MessageWrapperProps) => {
       })
     }
 
-    // 添加 member_responses (工具调用)
+    // 添加 member_responses (子Agent工具调用) - 流式数据实时更新
     if (message.member_responses && message.member_responses.length > 0) {
       message.member_responses.forEach((memberResponse, index) => {
         cards.push({
@@ -242,7 +260,7 @@ const AgentMessageWrapper = ({ message }: MessageWrapperProps) => {
       })
     }
 
-    // 添加 tools (执行结果)
+    // 添加 子Agent (执行结果) - 流式数据可能部分完成
     if (message.tool_calls && message.tool_calls.length > 0) {
       message.tool_calls.forEach((tool, index) => {
         if (tool.tool_name == 'transfer_task_to_member') {
@@ -294,13 +312,173 @@ const AgentMessageWrapper = ({ message }: MessageWrapperProps) => {
             </div>
           </div>
         )}
-      {/* 统一的卡片展示 */}
+      {/* 统一的卡片展示 - 流式数据 */}
       {unifiedCards.map((card) => (
         <UnifiedCard key={card.id} card={card} />
       ))}
       <AgentMessage message={message} />
     </div>
   )
+}
+
+// 历史会话数据渲染组件
+const HistoricalAgentMessageWrapper = ({ message }: MessageWrapperProps) => {
+  // 创建统一的卡片数组 - 历史数据完整
+  const createUnifiedCards = (): UnifiedCard[] => {
+    const cards: UnifiedCard[] = []
+
+    // // 添加 tool_calls (Team分配任务) - 历史数据完整
+    // if (message.tool_calls && message.tool_calls.length > 0) {
+    //   message.tool_calls.forEach((toolCall, index) => {
+    //     cards.push({
+    //       id: toolCall.tool_call_id || `tool-call-${toolCall.created_at}-${index}`,
+    //       type: 'tool_call',
+    //       created_at: toolCall.created_at,
+    //       data: toolCall
+    //     })
+    //   })
+    // }
+    // 添加 member_responses (Agent的工具调用) - 历史数据完整
+    if (message.member_responses && message.member_responses.length > 0) {
+      message.member_responses.forEach((memberResponse, index) => {
+        // 从message.tools中获取对应的toolCallData
+        if (message.tool_calls && message.tool_calls.length > 0) {
+          // 遍历memberResponse.tools，通过tool_call_id匹配message.tools中的数据
+          const toolCallData = message.tool_calls.find(tool => tool.tool_name === 'transfer_task_to_member' && tool.tool_args.member_id?.toLowerCase() === memberResponse.agent_name?.toLowerCase());
+          if (toolCallData) {
+            const cardId = `tool_call-${memberResponse.created_at-1}-${memberResponse.agent_name}`;
+            if (!cards.some(card => card.id === cardId)) {
+              // 分配任务
+              cards.push({
+                id: cardId,
+                type: 'tool_call',
+                created_at: memberResponse.created_at-1,
+                data: toolCallData
+              });
+            }
+            const cardId2 = `tool_call-${memberResponse.created_at+1}-${memberResponse.agent_name}`;
+            if (!cards.some(card => card.id === cardId2)) {
+              // 子Agent执行结果
+              cards.push({
+                id: cardId2,
+                type: 'tools_completion',
+                created_at: memberResponse.created_at+1,
+                data: toolCallData
+              });
+            }
+          } 
+          message.tool_calls.forEach((tool) => {
+            if (tool.tool_name !== 'transfer_task_to_member') {
+              const cardId = `tool_call-${tool.tool_call_id || index}`;
+              if (!cards.some(card => card.id === cardId)) {
+                // Team的工具调用
+                cards.push({
+                  id: cardId,
+                  type: 'tool_call',
+                  created_at: Date.now(),
+                  data: tool
+                });
+              }
+            }
+          })
+        }
+        // 子Agent的工具调用
+        cards.push({
+          id: `member-response-${message.created_at}-${index}`,
+          type: 'member_response',
+          created_at: memberResponse.created_at,
+          data: memberResponse
+        });
+      })
+    }
+
+    // // 添加 member_responses (工具调用) - 历史数据完整 测试版本
+    // if (message.messages && message.messages.length > 0) {
+    //   message.messages.forEach((msg, index) => {
+    //     // 含Team的分配任务 和 Team 的工具调用
+    //     if (msg.role == 'assistant') {
+    //       cards.push({
+    //         id: `msg-${msg.created_at}-${index}`,
+    //         type: 'tool_call',
+    //         created_at: msg.created_at,
+    //         data: msg.tool_calls
+    //       })
+    //     }
+    //   })
+    // }
+
+    // // 添加 tools (Team分配任务即Agent执行结果) - 历史数据完整
+    // if (message.tool_calls && message.tool_calls.length > 0) {
+    //   message.tool_calls.forEach((tool, index) => {
+    //     if (tool.tool_name == 'transfer_task_to_member') {
+    //     cards.push({
+    //       id: `tools-completion-${tool.tool_call_id || index}`,
+    //       type: 'tools_completion',
+    //       created_at: tool.created_at,
+    //       data: tool
+    //     })
+    //   }
+    //   })
+    // }
+    // console.log(cards)
+    // 按创建时间排序，确保正确的时间顺序
+    return cards.sort((a, b) => a.created_at - b.created_at)
+  }
+
+  const unifiedCards = createUnifiedCards()
+
+  return (
+    <div className="flex flex-col gap-y-9">
+      {message.extra_data?.reasoning_steps &&
+        message.extra_data.reasoning_steps.length > 0 && (
+          <div className="flex items-start gap-4">
+            <Tooltip
+              delayDuration={0}
+              content={<p className="text-accent">Reasoning</p>}
+              side="top"
+            >
+              <Icon type="reasoning" size="sm" />
+            </Tooltip>
+            <div className="flex flex-col gap-3">
+              <p className="text-xs uppercase">Reasoning</p>
+              <Reasonings reasoning={message.extra_data.reasoning_steps} />
+            </div>
+          </div>
+        )}
+      {message.extra_data?.references &&
+        message.extra_data.references.length > 0 && (
+          <div className="flex items-start gap-4">
+            <Tooltip
+              delayDuration={0}
+              content={<p className="text-accent">References</p>}
+              side="top"
+            >
+              <Icon type="references" size="sm" />
+            </Tooltip>
+            <div className="flex flex-col gap-3">
+              <References references={message.extra_data.references} />
+            </div>
+          </div>
+        )}
+      {/* 统一的卡片展示 - 历史数据 */}
+      {unifiedCards.map((card) => (
+        <UnifiedCard key={card.id} card={card} />
+      ))}
+      <AgentMessage message={message} />
+    </div>
+  )
+}
+
+const AgentMessageWrapper = ({ message }: MessageWrapperProps) => {
+  // 根据数据源选择不同的渲染组件
+  if (message.dataSource === 'streaming') {
+    return <StreamingAgentMessageWrapper message={message} isLastMessage={false} />
+  } else if (message.dataSource === 'historical') {
+    return <HistoricalAgentMessageWrapper message={message} isLastMessage={false} />
+  }
+  
+  // 默认使用流式渲染组件（向后兼容）
+  return <StreamingAgentMessageWrapper message={message} isLastMessage={false} />
 }
 const Reasoning: FC<ReasoningStepProps> = ({ index, stepTitle }) => (
   <div className="flex items-center gap-2 text-secondary">

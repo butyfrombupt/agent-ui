@@ -159,6 +159,7 @@ export interface RunResponse {
   member_responses?: Array<{
     content?: string,
     created_at: number,
+    agent_name: string,
     tools?: Array<{
       tool_call_id: string
       tool_name: string
@@ -198,6 +199,7 @@ export interface PlaygroundChatMessage {
   content: string
   streamingError?: boolean
   created_at: number
+  dataSource?: 'streaming' | 'historical'
   tool_calls?: ToolCall[]
   extra_data?: {
     reasoning_steps?: ReasoningSteps[]
@@ -207,11 +209,13 @@ export interface PlaygroundChatMessage {
   images?: ImageData[]
   videos?: VideoData[]
   audio?: AudioData[]
+  messages?: ModelMessage[]
   response_audio?: ResponseAudio
   // 新增：支持ToolCallCompleted事件中的member_responses
   member_responses?: Array<{
     content?: string,
     created_at: number,
+    agent_name: string,
     tools?: Array<{
       tool_call_id: string
       tool_name: string
@@ -291,6 +295,7 @@ export interface ChatEntry {
   response: {
     content: string
     tools?: ToolCall[]
+    messages?: ModelMessage[]
     extra_data?: {
       reasoning_steps?: ReasoningSteps[]
       reasoning_messages?: ReasoningMessage[]
@@ -303,12 +308,15 @@ export interface ChatEntry {
       transcript?: string
     }
     member_responses?: Array<{
-      content?: string
+      content?: string,
+      created_at: number,
+      agent_name: string,
       tools?: Array<{
         tool_call_id: string
         tool_name: string
         tool_args: Record<string, any>
-        result: any
+        result: any,
+        created_at: number,
         tool_call_error: boolean
       }>
     }>
