@@ -13,6 +13,10 @@ import {
 import React, { type FC, type JSX } from 'react'
 import ChatBlankState from './ChatBlankState'
 import Icon from '@/components/ui/icon'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
 
 // Unicode解码函数
 const decodeUnicodeString = (str: string): string => {
@@ -44,16 +48,91 @@ const ToolsResult: FC<{ result: any }> = ({ result }) => {
     }
   }
   
+  // 检测是否包含markdown语法，或者强制渲染markdown（因为tools_completion通常包含markdown）
+  const hasMarkdown = true; // 强制启用markdown渲染
+  
   const isLongResult = resultStr.length > 200;
   
   return (
-    <div className="font-mono text-xs break-words overflow-wrap-anywhere">
+    <div className="text-xs break-words overflow-wrap-anywhere">
       <div className="text-primary/70 font-medium mb-1">执行结果:</div>
       {isLongResult ? (
         <div>
-          <pre className="text-primary/90 whitespace-pre-wrap select-text">
-            {isExpanded ? resultStr : `${resultStr.substring(0, 200)}...`}
-          </pre>
+          {hasMarkdown ? (
+            <div className="text-primary/90 prose prose-sm prose-invert max-w-none">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw, rehypeSanitize]}
+                components={{
+                   code: ({ node, inline, className, children, ...props }: any) => {
+                     return inline ? (
+                       <code className="bg-background-secondary px-1 py-0.5 rounded text-xs font-mono" {...props}>
+                         {children}
+                       </code>
+                     ) : (
+                       <pre className="bg-background-secondary p-2 rounded overflow-x-auto">
+                         <code className="text-xs font-mono" {...props}>
+                           {children}
+                         </code>
+                       </pre>
+                     )
+                   },
+                   p: ({ children }) => {
+                     // 检查是否包含图片链接语法 ! `url`
+                     const content = String(children)
+                     const imageMatch = content.match(/!\s*`([^`]+)`/)
+                     if (imageMatch) {
+                       const imageUrl = imageMatch[1]
+                       return (
+                         <div className="mb-2">
+                           <img 
+                             src={imageUrl} 
+                             alt="图片" 
+                             className="max-w-full h-auto rounded border"
+                             onError={(e) => {
+                               e.currentTarget.style.display = 'none'
+                               e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                             }}
+                           />
+                           <div className="hidden text-xs text-primary/50 mt-1">
+                             图片加载失败: {imageUrl}
+                           </div>
+                         </div>
+                       )
+                     }
+                     return <p className="mb-2 last:mb-0">{children}</p>
+                   },
+                   ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                   ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+                   li: ({ children }) => <li className="mb-1">{children}</li>,
+                   h1: ({ children }) => <h1 className="text-sm font-bold mb-2">{children}</h1>,
+                   h2: ({ children }) => <h2 className="text-sm font-semibold mb-2">{children}</h2>,
+                   h3: ({ children }) => <h3 className="text-sm font-medium mb-1">{children}</h3>,
+                   h4: ({ children }) => <h4 className="text-sm font-medium mb-1">{children}</h4>,
+                   blockquote: ({ children }) => (
+                     <blockquote className="border-l-2 border-primary/30 pl-2 italic">{children}</blockquote>
+                   ),
+                   img: ({ src, alt }) => (
+                     <img 
+                       src={src} 
+                       alt={alt || '图片'} 
+                       className="max-w-full h-auto rounded border mb-2"
+                       onError={(e) => {
+                         e.currentTarget.style.display = 'none'
+                         e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                       }}
+                     />
+                   ),
+                 }}
+              >
+                {isExpanded ? resultStr : `${resultStr.substring(0, 200)}...`}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <pre className="text-primary/90 whitespace-pre-wrap select-text font-mono">
+              {isExpanded ? resultStr : `${resultStr.substring(0, 200)}...`}
+            </pre>
+          )}
           <button 
             className="mt-1 text-xs text-primary/50 hover:text-primary/80"
             onClick={() => setIsExpanded(!isExpanded)}
@@ -62,7 +141,79 @@ const ToolsResult: FC<{ result: any }> = ({ result }) => {
           </button>
         </div>
       ) : (
-        <pre className="text-primary/90 whitespace-pre-wrap select-text">{resultStr}</pre>
+        hasMarkdown ? (
+          <div className="text-primary/90 prose prose-sm prose-invert max-w-none">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw, rehypeSanitize]}
+              components={{
+                 code: ({ node, inline, className, children, ...props }: any) => {
+                   return inline ? (
+                     <code className="bg-background-secondary px-1 py-0.5 rounded text-xs font-mono" {...props}>
+                       {children}
+                     </code>
+                   ) : (
+                     <pre className="bg-background-secondary p-2 rounded overflow-x-auto">
+                       <code className="text-xs font-mono" {...props}>
+                         {children}
+                       </code>
+                     </pre>
+                   )
+                 },
+                 p: ({ children }) => {
+                   // 检查是否包含图片链接语法 ! `url`
+                   const content = String(children)
+                   const imageMatch = content.match(/!\s*`([^`]+)`/)
+                   if (imageMatch) {
+                     const imageUrl = imageMatch[1]
+                     return (
+                       <div className="mb-2">
+                         <img 
+                           src={imageUrl} 
+                           alt="图片" 
+                           className="max-w-full h-auto rounded border"
+                           onError={(e) => {
+                             e.currentTarget.style.display = 'none'
+                             e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                           }}
+                         />
+                         <div className="hidden text-xs text-primary/50 mt-1">
+                           图片加载失败: {imageUrl}
+                         </div>
+                       </div>
+                     )
+                   }
+                   return <p className="mb-2 last:mb-0">{children}</p>
+                 },
+                 ul: ({ children }) => <ul className="list-disc list-inside mb-2">{children}</ul>,
+                 ol: ({ children }) => <ol className="list-decimal list-inside mb-2">{children}</ol>,
+                 li: ({ children }) => <li className="mb-1">{children}</li>,
+                 h1: ({ children }) => <h1 className="text-sm font-bold mb-2">{children}</h1>,
+                 h2: ({ children }) => <h2 className="text-sm font-semibold mb-2">{children}</h2>,
+                 h3: ({ children }) => <h3 className="text-sm font-medium mb-1">{children}</h3>,
+                 h4: ({ children }) => <h4 className="text-sm font-medium mb-1">{children}</h4>,
+                 blockquote: ({ children }) => (
+                   <blockquote className="border-l-2 border-primary/30 pl-2 italic">{children}</blockquote>
+                 ),
+                 img: ({ src, alt }) => (
+                   <img 
+                     src={src} 
+                     alt={alt || '图片'} 
+                     className="max-w-full h-auto rounded border mb-2"
+                     onError={(e) => {
+                       e.currentTarget.style.display = 'none'
+                       e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                     }}
+                   />
+                 ),
+               }}
+            >
+              {resultStr}
+            </ReactMarkdown>
+          </div>
+        ) : (
+          <pre className="text-primary/90 whitespace-pre-wrap select-text font-mono">{resultStr}</pre>
+        )
       )}
     </div>
   );
